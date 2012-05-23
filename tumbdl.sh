@@ -23,6 +23,7 @@ imageLinks=()
 url=$1
 targetdir=$2
 wgetOptions='-nv'
+userAgent='--user-agent="Mozilla/5.0 (Windows NT 6.1; WOW64; rv:10.0.1) Gecko/20100101 Firefox/10.0.1"'
 articleList=$(echo "$targetdir/articles.txt")
 
 # check usage
@@ -44,7 +45,8 @@ mkdir "$targetdir"
 indexName=$(tempfile)
 cookieFile=$(tempfile)
 echo "tumbdl: Getting the first archive page..."
-wget "$url/archive/" -O "$indexName" --save-cookies "$cookieFile" --keep-session-cookies $wgetOptions
+wget "$url/archive/" -O "$indexName" --save-cookies "$cookieFile" --keep-session-cookies "$wgetOptions" "$userAgent" 
+
 
 # get next archive page from "Next >" link
 nextPageDir=$(cat "$indexName" | grep -o '/archive/?before\_time=[0-9]*'  | sed 's/http:\/\///g')   
@@ -63,7 +65,7 @@ while [[ -n $nextPageDir ]]; do
    nextPageDir=$(grep -o '/archive/?before\_time=[0-9]*' "$indexName")   
    indexName=$(tempfile)
    echo "tumbdl: $nextPageDir"
-   wget "$url$nextPageDir" -O "$indexName" --load-cookies "$cookieFile" $wgetOptions
+   wget "$url$nextPageDir" -O "$indexName" --load-cookies "$cookieFile" "$wgetOptions" "$userAgent"
 done
 
 # retrieve article pages, get image links
@@ -81,7 +83,7 @@ for article in "${articlePages[@]}"; do
 
    # test if article file has been downloaded previously
    if [[ $articleIsOld -eq 0 ]]; then
-      wget "$article" -O "$artfile" --load-cookies "$cookieFile" $wgetOptions
+      wget "$article" -O "$artfile" --load-cookies "$cookieFile" "$wgetOptions" "$userAgent"
       
       # add article URL to list of downloaded articles
       echo "$article" >> "$articleList"
@@ -94,7 +96,7 @@ for article in "${articlePages[@]}"; do
       # download images (if they don't exist)
       echo "tumbdl: Getting images (if they don't exist)..."
       for image in "${imageLinks[@]}"; do
-         wget "$image" -P "$targetdir" --referer="$artfile" --load-cookies "$cookieFile" --no-clobber $wgetOptions
+         wget "$image" -P "$targetdir" --referer="$artfile" --load-cookies "$cookieFile" --no-clobber "$wgetOptions" "$userAgent"
       done
       imageLinks=()
    else
