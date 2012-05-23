@@ -16,13 +16,16 @@ Usage
 -----
 
 Checkout the code:
+
      git clone git://github.com/gedsic/tumbdl.git
 
 Set script as executable:
+
      cd tumbdl
      chmod +x tumbdl.sh
 
 Run script on your favorite tumblelog
+
      ./tumbdl prostbote.tumblr.com prostbote
 
 Detailed usage of the script:
@@ -37,10 +40,10 @@ Donations
 If you use tumbdl and like it, you are welcome to donate bitcoins to
 my address: 1CbBGDshk4dTBrz3ps9xfyH8hhQWguTaCX
 
-License
+L)icense
 -------
-Licensed under the [Apache License] 2.0, see code for more information
+Licensed under the [Apache License](http://en.wikipedia.org/wiki/Apache_License) 2.0, see code for more information
 
 Authors
 -------
-* [@gedsic](http://github.com/gedsic))
+* [@gedsic](http://github.com/gedsic)
