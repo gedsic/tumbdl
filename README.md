@@ -8,13 +8,39 @@ files from the post pages. It keeps track of the post pages that have been
 downloaded, so that existing images are not downloaded again. This makes it easy
 to archive a tumblelog on your computer and update it if new images were posted.
 
-Requirements: bash (Version?), wget, grep, egrep (nothing fancy, most distros
-              should have them)
+Requirements:
+-------------
+bash (Version?), wget, grep, egrep (most linux distros should have these)
 
+Usage
+-----
 
-Usage example: ./tumbdl.sh prostbote.tumblr.com prost
+Checkout the code:
+     git clone git://github.com/gedsic/tumbdl.git
 
-Licensed under the Apache License 2.0, see code for more information
+Set script as executable:
+     cd tumbdl
+     chmod +x tumbdl.sh
 
+Run script on your favorite tumblelog
+     ./tumbdl prostbote.tumblr.com prostbote
+
+Detailed usage of the script:
+     
+     tumbdl.sh [URL] [DIR]
+     
+     URL: URL of tumblelog
+     DIR: directory to put images in
+     
+Donations
+---------
 If you use tumbdl and like it, you are welcome to donate bitcoins to
 my address: 1CbBGDshk4dTBrz3ps9xfyH8hhQWguTaCX
+
+License
+-------
+Licensed under the [Apache License] 2.0, see code for more information
+
+Authors
+-------
+* [@gedsic](http://github.com/gedsic))
