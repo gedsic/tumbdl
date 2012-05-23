@@ -40,7 +40,7 @@ Donations
 If you use tumbdl and like it, you are welcome to donate bitcoins to
 my address: 1CbBGDshk4dTBrz3ps9xfyH8hhQWguTaCX
 
-L)icense
+License
 -------
 Licensed under the [Apache License](http://en.wikipedia.org/wiki/Apache_License) 2.0, see code for more information
 
