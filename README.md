@@ -35,6 +35,12 @@ Detailed usage of the script:
      URL: URL of tumblelog
      DIR: directory to put images in
      
+FAQ
+---
+### I want to continue an interrupted download, but the script quits, saying that there is nothing new to download. What do?
+
+Delete the articles.txt file in your target directory. This way, the script will scan all archive pages again. Don't worry, existing images will not be overwritten.
+
 Donations
 ---------
 If you use tumbdl and like it, you are welcome to donate bitcoins to
