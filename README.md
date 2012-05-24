@@ -37,6 +37,10 @@ Detailed usage of the script:
      
 FAQ
 ---
+### I downloaded all images from some tumblr page a week ago. Now it has new images. How do I update my downloaded files?
+
+Simply run the script again, passing the URL of the page and the directory in which the old files are.
+
 ### I want to continue an interrupted download, but the script quits, saying that there is nothing new to download. What do?
 
 Delete the articles.txt file in your target directory. This way, the script will scan all archive pages again. Don't worry, existing images will not be overwritten.
