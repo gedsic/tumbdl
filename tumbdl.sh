@@ -9,7 +9,7 @@
 #
 # Example: ./tumbdl.sh prostbote.tumblr.com prost
 #
-# Requirements: nothing fancy. Just bash (Version?), wget, grep, egrep.
+# Requirements: nothing fancy. Just bash (v.4), wget, grep, egrep, coreutils
 #
 # Should also work for tumblelogs that have their own domain.
 #
@@ -41,72 +41,79 @@ url=$(echo "$url" | sed 's/http:\/\///g')
 # create target dir
 mkdir "$targetdir"
 
-# get first page
-indexName=$(tempfile)
+# set nextPageDir to get the first archive page 
 cookieFile=$(tempfile)
-echo "tumbdl: Getting the first archive page..."
-wget "$url/archive/" -O "$indexName" --save-cookies "$cookieFile" --keep-session-cookies "$wgetOptions" "$userAgent" 
+nextPageDir="/archive/"
+quit=0
 
-
-# get next archive page from "Next >" link
-nextPageDir=$(cat "$indexName" | grep -o '/archive/?before\_time=[0-9]*'  | sed 's/http:\/\///g')   
-
-# collect link to article pages (post pages)
-while read -r; do
-     articlePages+=("$REPLY")
-done < <(grep -o 'http://[^ ]*/post/[^" ]*' "$indexName")
-
-# scan next archive pages, collect more article urls
-while [[ -n $nextPageDir ]]; do
-   echo "tumbdl: Getting the next archive page:"
-   while read -r; do
-     articlePages+=("$REPLY")
-   done < <(grep -o 'http://[^ ]*/post/[^" ]*' "$indexName")
-   nextPageDir=$(grep -o '/archive/?before\_time=[0-9]*' "$indexName")   
+# iterate over archive pages, collect article urls and download images
+while [[ $quit -ne 1 ]]; do
    indexName=$(tempfile)
    echo "tumbdl: $nextPageDir"
    wget "$url$nextPageDir" -O "$indexName" --load-cookies "$cookieFile" "$wgetOptions" "$userAgent"
-done
-
-# retrieve article pages, get image links
-for article in "${articlePages[@]}"; do
-   artfile=$(tempfile)
-   echo "tumbdl: Getting article page:"
-   echo "$article"
-
-   # see if we already have an article list file
-   if [[ -e $articleList ]]; then
-     articleIsOld=$(grep -c "$article" "$articleList")
-   else
-     articleIsOld=0
-   fi
-
-   # test if article file has been downloaded previously
-   if [[ $articleIsOld -eq 0 ]]; then
-      wget "$article" -O "$artfile" --load-cookies "$cookieFile" "$wgetOptions" "$userAgent"
+   while read -r; do
+      article=("$REPLY")
+      echo "tumbdl: Getting article page:"
+      echo "$article"
+      # see if we already have an article list file
+      if [[ -e $articleList ]]; then
+         articleIsOld=$(grep -c "$article" "$articleList")
+      else
+         articleIsOld=0
+      fi
+      # test if article file has been downloaded previously
+      if [[ $articleIsOld -eq 0 ]]; then
+         # get article page
+         artfile=$(tempfile)
+         wget "$article" -O "$artfile" --referer="$nextPageDir" --load-cookies "$cookieFile" "$wgetOptions" "$userAgent"
       
-      # add article URL to list of downloaded articles
-      echo "$article" >> "$articleList"
+         # add article URL to list of downloaded articles
+         echo "$article" >> "$articleList"
 
-      # get image links
-      while read -r; do
-      imageLinks+=("$REPLY")
-      done < <(egrep -o "http://[^ ]*tumblr_[^ ]*.(jpg|jpeg|gif|png)" "$artfile")
+         # get image links
+         while read -r; do
+            imageLinks+=("$REPLY")
+         done < <(egrep -o "http://[^ ]*tumblr_[^ ]*.(jpg|jpeg|gif|png)" "$artfile")
 
-      # download images (if they don't exist)
-      echo "tumbdl: Getting images (if they don't exist)..."
-      for image in "${imageLinks[@]}"; do
-         wget "$image" -P "$targetdir" --referer="$artfile" --load-cookies "$cookieFile" --no-clobber "$wgetOptions" "$userAgent"
-      done
-      imageLinks=()
-   else
-      echo "tumbdl: Article has been downloaded previously, skipping..."
+         # loop over different image filenames (without resolution part)
+         # this is in case we have an image set on the article page
+         # this loop is executed once if the article contains a single image
+         while read -r; do
+
+            # determine maximum available resolution of image:
+            # cuts out the resolution parts of the filename, sorts them and
+            # picks out the largest one
+            maxRes=$(echo "${imageLinks[@]}" | sed 's/ /\n/g' | egrep -o "$REPLY\_[0-9]+" | sed "s/$REPLY\_//g" | sort -nr | head -n 1)
+
+            # get image url with the max resolution from link list 
+            image=$(echo "${imageLinks[@]}" | sed 's/ /\n/g' | egrep -o "http://[^ ]*$REPLY\_$maxRes.(jpg|jpeg|gif|png)")
+
+            # download image (if it doesn't exist)
+            echo "tumbdl: Getting image (if it doesn't exist)..."
+            wget "$image" -P "$targetdir" --referer="$artfile" --load-cookies "$cookieFile" --no-clobber "$wgetOptions" "$userAgent"
+
+         done < <(echo ${imageLinks[@]} | egrep -o "http://[^ ]*tumblr_[^ ]*.(jpg|jpeg|gif|png)" | sed 's/_[0-9]*\.[a-zA-Z]*//g' | sed 's/http:\/\/.*\///g' | uniq)
+         imageLinks=()
+      else
+         echo "tumbdl: Article has been downloaded previously, quitting..."
+         quit=1
+      fi
+   done < <(grep -o 'http://[^ ]*/post/[^" ]*' "$indexName")
+   if [[ $quit -eq 0 ]]; then
+      # get link to next archive page
+      nextPageDir=$(grep -o '/archive/?before\_time=[0-9]*' "$indexName")
+
+      # if no next archive page exists, quit
+      if [[ -z $nextPageDir ]]; then
+         quit=1;
+      fi
    fi
 done
+
 
 ################################################################################
 #
-# Copyright 2012 gedsic@karog.de
+#   Copyright 2012 gedsic@karog.de
 #
 #   Licensed under the Apache License, Version 2.0 (the "License");
 #   you may not use this file except in compliance with the License.
