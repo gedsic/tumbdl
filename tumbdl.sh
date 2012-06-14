@@ -86,7 +86,7 @@ while [[ $quit -ne 1 ]]; do
             maxRes=$(echo "${imageLinks[@]}" | sed 's/ /\n/g' | egrep -o "$REPLY\_[0-9]+" | sed "s/$REPLY\_//g" | sort -nr | head -n 1)
 
             # get image url with the max resolution from link list 
-            image=$(echo "${imageLinks[@]}" | sed 's/ /\n/g' | egrep -o "http://[^ ]*$REPLY\_$maxRes.(jpg|jpeg|gif|png)")
+            image=$(echo "${imageLinks[@]}" | sed 's/ /\n/g' | egrep -o "http://[^ ]*$REPLY\_$maxRes.(jpg|jpeg|gif|png)" | head -n 1)
 
             # download image (if it doesn't exist)
             echo "tumbdl: Getting image (if it doesn't exist)..."
@@ -96,7 +96,7 @@ while [[ $quit -ne 1 ]]; do
          imageLinks=()
       else
          echo "tumbdl: Article has been downloaded previously, quitting..."
-         quit=1
+         quit=0
       fi
    done < <(grep -o 'http://[^ ]*/post/[^" ]*' "$indexName")
    if [[ $quit -eq 0 ]]; then
