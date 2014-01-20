@@ -101,7 +101,7 @@ while [[ $quit -ne 1 ]]; do
    done < <(grep -o 'http://[^ ]*/post/[^" ]*' "$indexName")
    if [[ $quit -eq 0 ]]; then
       # get link to next archive page
-      nextPageDir=$(grep -o '/archive/?before\_time=[0-9]*' "$indexName")
+      nextPageDir=$(grep -o '/archive/?before\_time=[0-9]*' "$indexName" | head -n 1)
 
       # if no next archive page exists, quit
       if [[ -z $nextPageDir ]]; then

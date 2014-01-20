@@ -48,7 +48,7 @@ Delete the articles.txt file in your target directory. This way, the script will
 Donations
 ---------
 If you use tumbdl and like it, you are welcome to donate bitcoins to
-my address: 1CbBGDshk4dTBrz3ps9xfyH8hhQWguTaCX
+my address: 1LsCBob5B9SWknoZfF6xpZWJ9GF4NuBLVD 
 
 License
 -------
