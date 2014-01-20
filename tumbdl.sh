@@ -44,6 +44,7 @@ mkdir "$targetdir"
 # set nextPageDir to get the first archive page 
 cookieFile=$(tempfile)
 nextPageDir="/archive/"
+firstArchivePage=1
 quit=0
 
 # iterate over archive pages, collect article urls and download images
@@ -101,12 +102,16 @@ while [[ $quit -ne 1 ]]; do
    done < <(grep -o 'http://[^ ]*/post/[^" ]*' "$indexName")
    if [[ $quit -eq 0 ]]; then
       # get link to next archive page
-      nextPageDir=$(grep -o '/archive/?before\_time=[0-9]*' "$indexName" | head -n 1)
+      
+      numberOfLines=$(grep -o '/archive/?before\_time=[0-9]*' "$indexName" | wc -l);
+      if [[ $numberOfLines -gt 1 || firstArchivePage -eq 1 ]]; then
+         nextPageDir=$(grep -o '/archive/?before\_time=[0-9]*' "$indexName" | head -n 1);
+         firstArchivePage=0;
+      else
+         quit=1;
+      fi 
 
       # if no next archive page exists, quit
-      if [[ -z $nextPageDir ]]; then
-         quit=1;
-      fi
    fi
 done
 
