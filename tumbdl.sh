@@ -49,7 +49,7 @@ quit=0
 
 # iterate over archive pages, collect article urls and download images
 while [[ $quit -ne 1 ]]; do
-   indexName=$(tempfile)
+   indexName=$(mktemp)
    echo "tumbdl: $nextPageDir"
    wget "$url$nextPageDir" -O "$indexName" --load-cookies "$cookieFile" "$wgetOptions" "$userAgent"
    while read -r; do
