@@ -14,7 +14,7 @@
 # Should also work for tumblelogs that have their own domain.
 #
 # If you use and like this script, you are welcome to donate some bitcoins to
-# my address: 1CbBGDshk4dTBrz3ps9xfyH8hhQWguTaCX
+# my address: 1LsCBob5B9SWknoZfF6xpZWJ9GF4NuBLVD
 #
 
 articlePages=()
