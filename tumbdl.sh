@@ -42,7 +42,7 @@ url=$(echo "$url" | sed 's/http:\/\///g')
 mkdir "$targetdir"
 
 # set nextPageDir to get the first archive page 
-cookieFile=$(tempfile)
+cookieFile=$(mktemp)
 nextPageDir="/archive/"
 firstArchivePage=1
 quit=0
@@ -65,7 +65,7 @@ while [[ $quit -ne 1 ]]; do
       # test if article file has been downloaded previously
       if [[ $articleIsOld -eq 0 ]]; then
          # get article page
-         artfile=$(tempfile)
+         artfile=$(mktemp)
          wget "$article" -O "$artfile" --referer="$nextPageDir" --load-cookies "$cookieFile" "$wgetOptions" "$userAgent"
       
          # add article URL to list of downloaded articles
