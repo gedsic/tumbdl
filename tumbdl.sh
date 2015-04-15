@@ -42,14 +42,14 @@ url=$(echo "$url" | sed 's/http:\/\///g')
 mkdir "$targetdir"
 
 # set nextPageDir to get the first archive page 
-cookieFile=$(mktemp)
+cookieFile="$(mktemp 2>/dev/null || mktemp -t 'mytmpdir')"
 nextPageDir="/archive/"
 firstArchivePage=1
 quit=0
 
 # iterate over archive pages, collect article urls and download images
 while [[ $quit -ne 1 ]]; do
-   indexName=$(mktemp)
+   indexName="$(mktemp 2>/dev/null || mktemp -t 'mytmpdir')"
    echo "tumbdl: $nextPageDir"
    wget "$url$nextPageDir" -O "$indexName" --load-cookies "$cookieFile" "$wgetOptions" "$userAgent"
    while read -r; do
@@ -65,7 +65,7 @@ while [[ $quit -ne 1 ]]; do
       # test if article file has been downloaded previously
       if [[ $articleIsOld -eq 0 ]]; then
          # get article page
-         artfile=$(mktemp)
+         artfile="$(mktemp 2>/dev/null || mktemp -t 'mytmpdir')"
          wget "$article" -O "$artfile" --referer="$nextPageDir" --load-cookies "$cookieFile" "$wgetOptions" "$userAgent"
       
          # add article URL to list of downloaded articles
