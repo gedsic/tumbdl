@@ -37,7 +37,7 @@ if [ $# -ne 2 ]; then
 fi
 
 # sanitize input url
-url=$(echo "$url" | sed 's/https\?:\/\///g')
+url=$(echo "$url" | sed 's/http[s]*:\/\///g')
 
 # create target dir
 mkdir "$targetdir"
@@ -75,7 +75,7 @@ while [[ $quit -ne 1 ]]; do
          # get image links
          while read -r; do
             imageLinks+=("$REPLY")
-         done < <(egrep -o "https://[^ ]*tumblr_[^ ]*.(jpg|jpeg|gif|png)" "$artfile")
+         done < <(egrep -o "http[s]*://[^ ]*tumblr_[^ ]*.(jpg|jpeg|gif|png)" "$artfile")
 
          # loop over different image filenames (without resolution part)
          # this is in case we have an image set on the article page
@@ -88,13 +88,13 @@ while [[ $quit -ne 1 ]]; do
             maxRes=$(echo "${imageLinks[@]}" | sed 's/ /\n/g' | egrep -o "$REPLY\_[0-9]+" | sed "s/$REPLY\_//g" | sort -nr | head -n 1)
 
             # get image url with the max resolution from link list 
-            image=$(echo "${imageLinks[@]}" | sed 's/ /\n/g' | egrep -o "http://[^ ]*$REPLY\_$maxRes.(jpg|jpeg|gif|png)" | head -n 1)
+            image=$(echo "${imageLinks[@]}" | sed 's/ /\n/g' | egrep -o "http[s]*://[^ ]*$REPLY\_$maxRes.(jpg|jpeg|gif|png)" | head -n 1)
 
             # download image (if it doesn't exist)
             echo "tumbdl: Getting image (if it doesn't exist)..."
             wget "$image" -P "$targetdir" --referer="$artfile" --load-cookies "$cookieFile" --no-clobber "$wgetOptions" "$userAgent"
 
-         done < <(echo ${imageLinks[@]} | egrep -o "https://[^ ]*tumblr_[^ ]*.(jpg|jpeg|gif|png)" | sed 's/_[0-9]*\.[a-zA-Z]*//g' | sed 's/https\?:\/\/.*\///g' | uniq)
+         done < <(echo ${imageLinks[@]} | egrep -o "http[s]*://[^ ]*tumblr_[^ ]*.(jpg|jpeg|gif|png)" | sed 's/_[0-9]*\.[a-zA-Z]*//g' | sed 's/http[s]*:\/\/.*\///g' | uniq)
          imageLinks=()
 
          # get video link
@@ -102,13 +102,15 @@ while [[ $quit -ne 1 ]]; do
          while read -r; do
             echo "***** VIDEOLINK ***** $REPLY"
             videoLinks+=("$REPLY")
-         done < <(egrep -o "https://www.tumblr.com/video/.*/[0-9]*/[0-9]*/" "$artfile")
-
+         done < <(egrep -o "http[s]*://www.tumblr.com/video/.*/[0-9]*/[0-9]*/" "$artfile")
+         if [ -z "$videoLinks" ]; then
+            echo "tumbdl: No video found"
+         else
          while read -r; do
             # download video player page to determine video url
             pfileName="$(mktemp 2>/dev/null || mktemp -t 'mytmpdir')"
             wget "${videoLinks[@]}" -O "$pfileName" --load-cookies "$cookieFile" "$wgetOptions" "$userAgent"
-            video=$(cat "$pfileName" | grep -o "https://www.tumblr.com/video_file/[0-9]*/tumblr_[A-Za-z0-9]*")
+            video=$(cat "$pfileName" | grep -o "http[s]*://www.tumblr.com/video_file/[0-9]*/tumblr_[A-Za-z0-9]*")
             videoName=$(cat "$artfile" | grep -o "<meta name=\"description\" content=\".*\" />" | grep -o "content=\".*\"" | sed -e 's/content=\"//g' -e 's/"//g')
 
             # check if video name is empty (happens from time to time)
@@ -122,13 +124,14 @@ while [[ $quit -ne 1 ]]; do
             wget "$video" -O "$targetdir/$videoName" --referer="$artfile" --load-cookies "$cookieFile" --no-clobber "$wgetOptions" "$userAgent"
          done < <(echo ${videolinks[@]})
          videoLinks=()
+         fi
 
 
       else
          echo "tumbdl: Article has been downloaded previously, quitting..."
          quit=0
       fi
-   done < <(grep -o 'http://[^ ]*/post/[^" ]*' "$indexName")
+   done < <(grep -o 'http[s]*://[^ ]*/post/[^" ]*' "$indexName")
    if [[ $quit -eq 0 ]]; then
       # get link to next archive page
       
