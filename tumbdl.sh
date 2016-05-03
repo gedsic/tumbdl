@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-# tumbdl.sh - a tumblr image downloader
+# tumbdl.sh - a tumblr image (and video) downloader
 #
 # Usage: tumbdl.sh [URL] [DIR]
 #
@@ -20,10 +20,11 @@
 articlePages=()
 archivePages=()
 imageLinks=()
+videoLinks=()
 url=$1
 targetdir=$2
 wgetOptions='-nv'
-userAgent='--user-agent="Mozilla/5.0 (Windows NT 6.1; WOW64; rv:10.0.1) Gecko/20100101 Firefox/10.0.1"'
+userAgent='--user-agent="Mozilla/5.0 (Windows NT 6.1; WOW64; rv:40.0) Gecko/20100101 Firefox/40.1"'
 articleList=$(echo "$targetdir/articles.txt")
 
 # check usage
@@ -36,7 +37,7 @@ if [ $# -ne 2 ]; then
 fi
 
 # sanitize input url
-url=$(echo "$url" | sed 's/http:\/\///g')
+url=$(echo "$url" | sed 's/https\?:\/\///g')
 
 # create target dir
 mkdir "$targetdir"
@@ -74,7 +75,7 @@ while [[ $quit -ne 1 ]]; do
          # get image links
          while read -r; do
             imageLinks+=("$REPLY")
-         done < <(egrep -o "http://[^ ]*tumblr_[^ ]*.(jpg|jpeg|gif|png)" "$artfile")
+         done < <(egrep -o "https://[^ ]*tumblr_[^ ]*.(jpg|jpeg|gif|png)" "$artfile")
 
          # loop over different image filenames (without resolution part)
          # this is in case we have an image set on the article page
@@ -93,8 +94,36 @@ while [[ $quit -ne 1 ]]; do
             echo "tumbdl: Getting image (if it doesn't exist)..."
             wget "$image" -P "$targetdir" --referer="$artfile" --load-cookies "$cookieFile" --no-clobber "$wgetOptions" "$userAgent"
 
-         done < <(echo ${imageLinks[@]} | egrep -o "http://[^ ]*tumblr_[^ ]*.(jpg|jpeg|gif|png)" | sed 's/_[0-9]*\.[a-zA-Z]*//g' | sed 's/http:\/\/.*\///g' | uniq)
+         done < <(echo ${imageLinks[@]} | egrep -o "https://[^ ]*tumblr_[^ ]*.(jpg|jpeg|gif|png)" | sed 's/_[0-9]*\.[a-zA-Z]*//g' | sed 's/https\?:\/\/.*\///g' | uniq)
          imageLinks=()
+
+         # get video link
+	 echo "Looking for video link"
+         while read -r; do
+            echo "***** VIDEOLINK ***** $REPLY"
+            videoLinks+=("$REPLY")
+         done < <(egrep -o "https://www.tumblr.com/video/.*/[0-9]*/[0-9]*/" "$artfile")
+
+         while read -r; do
+            # download video player page to determine video url
+            pfileName="$(mktemp 2>/dev/null || mktemp -t 'mytmpdir')"
+            wget "${videoLinks[@]}" -O "$pfileName" --load-cookies "$cookieFile" "$wgetOptions" "$userAgent"
+            video=$(cat "$pfileName" | grep -o "https://www.tumblr.com/video_file/[0-9]*/tumblr_[A-Za-z0-9]*")
+            videoName=$(cat "$artfile" | grep -o "<meta name=\"description\" content=\".*\" />" | grep -o "content=\".*\"" | sed -e 's/content=\"//g' -e 's/"//g')
+
+            # check if video name is empty (happens from time to time)
+            # use tumblr filename instead
+            if [ -z "$videoName" ]; then
+                videoName=$(echo "${video##*/}")
+            fi
+            # download video (if it doesn't exist)
+            echo "tumbdl: Getting video (if it doesn't exist)..."
+            echo "tumbdl: Video file name: $videoName"
+            wget "$video" -O "$targetdir/$videoName" --referer="$artfile" --load-cookies "$cookieFile" --no-clobber "$wgetOptions" "$userAgent"
+         done < <(echo ${videolinks[@]})
+         videoLinks=()
+
+
       else
          echo "tumbdl: Article has been downloaded previously, quitting..."
          quit=0

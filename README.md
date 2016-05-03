@@ -4,9 +4,7 @@ tumbdl
 Tumblr image downloader and archiver
 
 A simple bash script that scans the archive of a tumblelog and gets the image
-files from the post pages. It keeps track of the post pages that have been
-downloaded, so that existing images are not downloaded again. This makes it easy
-to archive a tumblelog on your computer and update it if new images were posted.
+or video files from the post pages. It keeps track of the post pages that have been downloaded, so that existing images are not downloaded again. This makes it easy to archive a tumblelog on your computer and update it if new images were posted.
 
 Requirements:
 -------------
@@ -26,7 +24,7 @@ Set script as executable:
 
 Run script on your favorite tumblelog
 
-     ./tumbdl prostbote.tumblr.com prostbote
+     ./tumbdl.sh prostbote.tumblr.com prostbote
 
 Detailed usage of the script:
      
@@ -44,6 +42,10 @@ Simply run the script again, passing the URL of the page and the directory in wh
 ### I want to continue an interrupted download, but the script quits, saying that there is nothing new to download. What do?
 
 Delete the articles.txt file in your target directory. This way, the script will scan all archive pages again. Don't worry, existing images will not be overwritten.
+
+### The script doesn't download some of the videos
+
+Videos not hosted by tumblr will not be downloaded. Try youtube-dl!
 
 Donations
 ---------
