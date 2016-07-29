@@ -95,7 +95,7 @@ while [[ $quit -ne 1 ]]; do
 				if [ ! -z "$image" ]; then
 					echo "tumbdl: Getting image [$image] (if it doesn't exist)..."
 					wget "$image" -P "$targetdir" --referer="$artfile" --load-cookies "$cookieFile" --no-clobber "$wgetOptions" "$userAgent"
-
+				fi
 				done < <(echo ${imageLinks[@]} | egrep -o "http[s]*://[^ ]*tumblr_[^ ]*.(jpg|jpeg|gif|png)" | sed 's/_[0-9]*\.[a-zA-Z]*//g' | sed 's/http[s]*:\/\/.*\///g' | uniq)
 				imageLinks=()
 
