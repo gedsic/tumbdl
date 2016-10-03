@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-# tumbdl.sh - a tumblr image (and video) downloader
+# tumbdl.sh - a tumblr image downloader
 #
 # Usage: tumbdl.sh [URL] [DIR]
 #
@@ -9,184 +9,187 @@
 #
 # Example: ./tumbdl.sh prostbote.tumblr.com prost
 #
-# Requirements: nothing fancy. Just bash (v.4), wget, grep, egrep, coreutils
+# Requirements: curl, PCRE for grep -P (normally you have this)
 #
 # Should also work for tumblelogs that have their own domain.
 #
 # If you use and like this script, you are welcome to donate some bitcoins to
 # my address: 1LsCBob5B9SWknoZfF6xpZWJ9GF4NuBLVD
 #
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-articlePages=()
-archivePages=()
-imageLinks=()
-videoLinks=()
 url=$1
-targetdir=$2
-# wgetOptions='-nv' Not verbose. I prefer verbosity.
-wgetOptions='-v'
-userAgent='--user-agent="Mozilla/5.0 (Windows NT 6.1; WOW64; rv:40.0) Gecko/20100101 Firefox/40.1"'
-articleList=$(echo "$targetdir/articles.txt")
+targetDir=$2
+
+# global curl options
+# to disable progress bar, replace with -s
+# to enable verbose mode, add -v
+curlOptions='--progress-bar'
+userAgent='Mozilla/5.0 (Windows NT 6.1; WOW64; rv:47.0) Gecko/20100101 Firefox/47.0'
 
 # check usage
 if [ $# -ne 2 ]; then
-	echo "Usage: tumbdl [URL] [DIR]"
-	echo ""
-	echo "URL: URL of tumblelog, e.g. prostbote.tumblr.com"
-	echo "DIR: directory to put images in, e.g. prostbote"
-	exit
+  echo "Usage: tumbdl [URL] [DIR]"
+  echo ""
+  echo "URL: URL of tumblelog, e.g. prostbote.tumblr.com"
+  echo "DIR: directory to put images in, e.g. prostbote"
+  exit
 fi
 
 # sanitize input url
-url=$(echo "$url" | sed 's/http[s]*:\/\///g')
+url=$(echo "$url" | sed 's/http[s]*:\/\///g;s/\/$//g')
 
 # create target dir
-mkdir "$targetdir"
+mkdir "$targetDir"
+touch "$targetDir/articles.txt"
 
-# set nextPageDir to get the first archive page 
+# create cookie jar (not really needed atm)
 cookieFile="$(mktemp 2>/dev/null || mktemp -t 'mytmpdir')"
-nextPageDir="/archive/"
-firstArchivePage=1
-quit=0
 
-# iterate over archive pages, collect article urls and download images
-while [[ $quit -ne 1 ]]; do
-	indexName="$(mktemp 2>/dev/null || mktemp -t 'mytmpdir')"
-	echo "tumbdl: $nextPageDir"
-	wget "$url$nextPageDir" -O "$indexName" --load-cookies "$cookieFile" "$wgetOptions" "$userAgent"
-	while read -r; do
-		article=("$REPLY")
-		echo "tumbdl: Getting article page:"
-		echo "$article"
-		# see if we already have an article list file
-		if [[ -e $articleList ]]; then
-			articleIsOld=$(grep -c "$article" "$articleList")
-		else
-			articleIsOld=0
-		fi
-		# test if article file has been downloaded previously
-		if [[ $articleIsOld -eq 0 ]]; then
-			# get article page
-			artfile="$(mktemp 2>/dev/null || mktemp -t 'mytmpdir')"
-			wget "$article" -O "$artfile" --referer="$nextPageDir" --load-cookies "$cookieFile" "$wgetOptions" "$userAgent"
+# get first archive page
+archiveLink="/archive/"
 
-			# add article URL to list of downloaded articles
-			echo "$article" >> "$articleList"
+# loop over archive pages
+endOfArchive=0
+while [[ $endOfArchive -ne 1 ]]
+do
+  # get archive page
+  archivePage=$(curl $curlOptions -c $cookieFile --referer "http://$url" -A "$userAgent" "$url$archiveLink")
+  echo "Retrieving archive page $url$archiveLink..."  
 
-			# get image links
-			while read -r; do
-				imageLinks+=("$REPLY")
-			done < <(egrep -o "http[s]*://[^ ]*tumblr_[^ ]*.(jpg|jpeg|gif|png)" "$artfile")
+  # extract links to posts
+  monthPosts=$(echo "$archivePage" | grep -o -P "/post/[0-9]*.*?\"" | sed 's/"//g')
+  
+  # process all posts on this archive page
+  for postURL in $(echo "$monthPosts")
+  do
+    # check if post page has already been processed before
+    if grep -Fxq "$postURL" "$targetDir/articles.txt"
+    then
+      echo "Already got $url$postURL, skipping."
+    else 
+      # get the image links (can be multiple images in sets)
+      echo "Retrieving post $url$postURL..."
+      postPage=$(curl $curlOptions -b $cookieFile --referer "http://$url$archiveLink" -A "$userAgent" "$url$postURL")
+      imageLinks=$(echo "$postPage" | grep -o -P "http[s]*://([0-9]*.)?media\.tumblr\.com/([A-Za-z0-9]*/)?tumblr_[A-Za-z0-9]*_[0-9]*\.[a-z]*" | sort | uniq)
+      # remove resolution info from image filename
+      baseImages=$(echo "$imageLinks" | grep -o "tumblr_.*$" | sed 's/_[0-9]*\.\w*//g' | uniq)
+      # if we encounter any download errors, don't mark the post as archived
+      curlError=0
 
-			# loop over different image filenames (without resolution part)
-			# this is in case we have an image set on the article page
-			# this loop is executed once if the article contains a single image
-			while read -r; do
+      # determine the highest available resolution and download image
+      if [ ! -z "$baseImages" ]
+      then
 
-				# determine maximum available resolution of image:
-				# cuts out the resolution parts of the filename, sorts them and
-				# picks out the largest one
-				maxRes=$(echo "${imageLinks[@]}" | sed 's/ /\n/g' | egrep -o "$REPLY\_[0-9]+" | sed "s/$REPLY\_//g" | sort -nr | head -n 1)
+        for image in $(echo "$baseImages")
+        do
+          # get the image name of image with highest resolution
+          maxResImage=$(echo "$imageLinks" | grep -o "$image.*" | sort -n | head -n 1)
+          # get full image url
+          maxResImageURL=$(echo "$imageLinks" | grep "$maxResImage")
+          # download image (if it doesn't exist)
+          if [ -e "$targetDir/$maxResImage" ]
+          then
+            echo "Image exists, skipping."
+          else
+            echo "Downloading image $maxResImageURL..."
+            curl $curlOptions -b $cookieFile --referer "http://$url$postURL" -A "$userAgent" -o "$targetDir/$maxResImage" "$maxResImageURL"
+            if [ ! 0 -eq $? ]; then curlError=1; fi;
+          fi
+        done
+      else
+        # no images found, check for video links
+        echo "No images found, checking for videos"
+        
+        # check for tumblr hosted videos
+        videoPlayers=$(echo "$postPage" | grep -o -P "http[s]*://www.tumblr.com/video/.*/[0-9]*/[0-9]*/" | sort | uniq)
+        for video in $(echo "$videoPlayers")
+        do
+          echo "Found tumblr-hosted video $video"
+          # get video link and type
+          videoSource=$(curl $curlOptions -b $cookieFile --referer "http://$url$postURL" -A "$userAgent" "$video" | grep -o -P "<source src=\"http[s]*://www.tumblr.com/video_file/.*?>")
+          # get video url
+          videoURL=$(echo "$videoSource" | grep -o -P "http[s]*://www.tumblr.com/video_file/[[:0-9A-Za-z]*/]*[0-9]*/tumblr_[A-Za-z0-9]*")
+          # construct filename with extension from type string
+          videoFile=$(echo "$videoSource" | grep -o -P "tumblr_.*?>" | sed -e 's/<source src=\"//g' -e 's/\" type=\"video\//./g' -e 's/\">//g' -e 's/\//\_/g')
+          # download video (if it doesn't exist)
+          if [ -e "$targetDir/$videoFile" ]
+          then
+            echo "Video exists, skipping."
+          else
+            echo "Downloading video $videoURL"
+            curl $curlOptions -L -b $cookieFile --referer "http://$url$postURL" -A "$userAgent" -o "$targetDir/$videoFile" "$videoURL"
+            if [ ! 0 -eq $? ]; then curlError=1; fi;
+          fi
+        done
+        # check if youtube-dl is available
+        if hash youtube-dl 2>/dev/null
+        then
+          # gather embedded video urls
+          otherSource=""
+          # check for instagram video
+          otherSource=$(echo "$otherSource"; echo "$postPage" | grep -o -P "http[s]*://www.instagram.com/p/[A-Za-z0-9]*")
+          # check fou youtube video
+          otherSource=$(echo "$otherSource"; echo "$postPage" | grep -o -P "http[s]*://www.youtube.com/embed/.*?\?" | sed 's/\?//g')
+          # check for vine
+          otherSource=$(echo "$otherSource"; echo "$postPage" | grep -o -P "http[s]*://vine.co/v/.*?/")
+          # check for vimeo
+          otherSource=$(echo "$otherSource"; echo "$postPage" | grep -o -P "http[s]*://player.vimeo.com/video/[0-9]*")
+          # check for dailymotion
+          otherSource=$(echo "$otherSource"; echo "$postPage" | grep -o -P "http[s]*://www.dailymotion.com/embed/video/[A-Za-z0-9]*")
+          # check for brightcove
+          otherSource=$(echo "$otherSource"; echo "$postPage" | grep -o -P "http[s]*://players.brightcove.net/.*/index.html\?videoId=[0-9]*")
+          # add expressions for other video sites here like this:
+          #otherSource=$(echo "$otherSource"; echo "$postPage" | grep -o "http[s]*://www.example.com/embed/video/[A-Za-z0-9]*")
+          
+          # if video links were found, try youtube-dl
+          if [ ! -z $otherSource ]
+          then
+            for otherVid in $(echo "$otherSource")
+            do
+              echo "Found embedded video $otherVid, attempting download via youtube-dl..."
+              youtube-dl "$otherVid" -o "$targetDir/%(title)s_%(duration)s.%(ext)s" -ciw
+              # if error occurs, don't mark post as archived
+              if [ ! 0 -eq $? ]; then curlError=1; fi;
+            done
+          else
+            echo "No videos found, moving on."
+          fi
+        else
+          echo "youtube-dl not installed, not checking for externally hosted videos."
+        fi
+      fi
+      
+      # if no error occured, enter page as downloaded
+      if [[ $curlError -eq 0 ]]
+      then
+        echo "$postURL" >> "$targetDir/articles.txt"
+      else
+        echo "Some error occured during downloading. No articles.txt entry created."
+      fi
 
-				# get image url with the max resolution from link list 
-				image=$(echo "${imageLinks[@]}" | sed 's/ /\n/g' | egrep -o "http[s]*://[^ ]*$REPLY\_$maxRes.(jpg|jpeg|gif|png)" | head -n 1)
-
-				# download image (if it doesn't exist)
-				if [ ! -z "$image" ]; then
-					echo "tumbdl: Getting image [$image] (if it doesn't exist)..."
-					wget "$image" -P "$targetdir" --referer="$artfile" --load-cookies "$cookieFile" --no-clobber "$wgetOptions" "$userAgent"
-				fi
-			done < <(echo ${imageLinks[@]} | egrep -o "http[s]*://[^ ]*tumblr_[^ ]*.(jpg|jpeg|gif|png)" | sed 's/_[0-9]*\.[a-zA-Z]*//g' | sed 's/http[s]*:\/\/.*\///g' | uniq)
-			imageLinks=()
-
-			# get video link
-			echo "Looking for video link"
-			while read -r; do
-				echo "***** VIDEOLINK ***** $REPLY"
-				if [ -z "$videoLinks" ]; then
-					videoLinks=$REPLY
-				else
-					videoLinks="$videoLinks"$'\n'"$REPLY"
-				fi
-			done < <(egrep -o "http[s]*://www.tumblr.com/video/.*/[0-9]*/[0-9]*/" "$artfile")
-			if [ -z "$videoLinks" ]; then
-				echo "tumbdl: No video found. Attempting youtube-dl."
-				videoWrapperCount=$(grep -c "class=\"video-wrapper\"" "$artfile")
-				if [[ $videoWrapperCount -gt 0 ]]; then
-					echo "Found $videoWrapperCount video-wrapper(s)."
-					youtube-dl "$article" -o "${targetdir}/%(title)s.%(ext)s" -ciw
-				else
-					echo "Still found no videos."
-				fi
-			else
-				while read -r; do
-					# download video player page to determine video url
-					pfileName="$(mktemp 2>/dev/null || mktemp -t 'mytmpdir')"
-					wget "$REPLY" -O "$pfileName" --load-cookies "$cookieFile" "$wgetOptions" "$userAgent"
-					video=$(cat "$pfileName" | grep -o "http[s]*://www.tumblr.com/video_file/[0-9]*/tumblr_[A-Za-z0-9]*")
-
-					# If no $video found, it might be in a new url format (Should check if more than a : should be added to the regex.)
-					if [[ -z $video ]]; then
-						video=$(cat "$pfileName" | grep -o "http[s]*://www.tumblr.com/video_file/[:A-Za-z0-9]*/[0-9]*/tumblr_[A-Za-z0-9]*")
-					fi
-
-					# If still no $video found, fallback to youtube-dl again
-					if [ -z "$video" ]; then
-						echo "tumbdl: Video post found, but couldn't find filename. Attempting youtube-dl."
-						videoWrapperCount=$(grep -c "class=\"video-wrapper\"" "$artfile")
-						if [[ $videoWrapperCount -gt 0 ]]; then
-							echo "Found $videoWrapperCount video-wrapper(s)."
-							youtube-dl "$article" -o "${targetdir}/%(title)s.%(ext)s" -ciw
-						else
-							echo "Still found no videos."
-						fi
-					else
-						# We found a video, so d/l with wget, not youtube-dl.
-						videoName=$(echo "${video##*/}")
-						echo "tumbdl: Getting video (if it doesn't exist)..."
-						echo "tumbdl: Video file name: $videoName"
-						wget "$video" -O "$targetdir/$videoName" --referer="$artfile" --load-cookies "$cookieFile" --no-clobber "$wgetOptions" "$userAgent"
-					fi
-				done < <(echo "${videoLinks[@]}")
-				videoLinks=()
-			fi
-		else
-			echo "tumbdl: Article has been downloaded previously, quitting..."
-			quit=0
-		fi
-	done < <(grep -o 'http[s]*://[^ ]*/post/[^" ]*' "$indexName")
-	if [[ $quit -eq 0 ]]; then
-		# get link to next archive page
-
-		numberOfLines=$(grep -o '/archive/?before\_time=[0-9]*' "$indexName" | wc -l);
-		if [[ $numberOfLines -gt 1 || firstArchivePage -eq 1 ]]; then
-			nextPageDir=$(grep -o '/archive/?before\_time=[0-9]*' "$indexName" | head -n 1);
-			firstArchivePage=0;
-		else
-			quit=1;
-		fi 
-
-		# if no next archive page exists, quit
-	fi
+    fi
+  done
+  # get link to next archive page
+  archiveLink=$(echo "$archivePage" | grep -o -P "id=\"next_page_link\" href=\".*?\"" | sed -e 's/id=\"next_page_link\" href=\"//g' -e 's/\"//g')
+  # check if we are at the end of the archive (no link is returned)
+  if [ -z "$archiveLink" ]
+  then
+    endOfArchive=1
+    echo "Reached the last archive page. Done!"
+  else
+    echo "Next archive page: $url$archiveLink"
+  fi
 done
-
-
-################################################################################
-#
-#   Copyright 2012 gedsic@karog.de
-#
-#   Licensed under the Apache License, Version 2.0 (the "License");
-#   you may not use this file except in compliance with the License.
-#   You may obtain a copy of the License at
-#
-#       http://www.apache.org/licenses/LICENSE-2.0
-#
-#
-#  Unless required by applicable law or agreed to in writing, software
-#  distributed under the License is distributed on an "AS IS" BASIS,
-#  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-#  See the License for the specific language governing permissions and
-#  limitations under the License.
-#
-################################################################################
 

@@ -3,12 +3,11 @@ tumbdl
 
 Tumblr image downloader and archiver
 
-A simple bash script that scans the archive of a tumblelog and gets the image
-or video files from the post pages. It keeps track of the post pages that have been downloaded, so that existing images are not downloaded again. This makes it easy to archive a tumblelog on your computer and update it if new images were posted.
+A simple bash script that scans the archive of a tumblelog and gets the image or video files from the post pages. It keeps track of the post pages that have been downloaded, so that existing images are not downloaded again. This makes it easy to archive a tumblelog on your computer and update it if new images were posted.
 
 Requirements:
 -------------
-bash (Version?), wget, grep, egrep (most linux distros should have these)
+bash (version?), curl, PCRE for grep -P (normally you have this), youtube-dl (see https://rg3.github.io/youtube-dl/) for externally hosted videos
 
 Usage
 -----
@@ -45,17 +44,24 @@ Delete the articles.txt file in your target directory. This way, the script will
 
 ### The script doesn't download some of the videos
 
-Videos not hosted by tumblr will not be downloaded. Try youtube-dl!
+If the video is hosted on tumblr, the URL scheme for videos probably changed. Support for externally hosted videos is unreliable at the moment. I tried to support vine, vimeo, instagram, youtube and dailymotion. If you miss something or notice that something does not work, please file a bug report. Or better yet - investigate and fix the problem and submit a pull request!
+
+### The script doesn't download some of the images
+
+I don't run tumbdl on a regular basis, so I don't immediately notice if something in tumblr URL schemes changes. As with video problems, please file a bug report or work it out and submit a pull request. Thanks!
 
 Donations
 ---------
-If you use tumbdl and like it, you are welcome to donate bitcoins to
-my address: 1LsCBob5B9SWknoZfF6xpZWJ9GF4NuBLVD 
+If you use tumbdl and like it, you are welcome to donate bitcoins to my address: 1LsCBob5B9SWknoZfF6xpZWJ9GF4NuBLVD 
 
 License
 -------
-Licensed under the [Apache License](http://en.wikipedia.org/wiki/Apache_License) 2.0, see code for more information
+Licensed under [GPLv3](http://www.gnu.org/licenses/), see code for more information
 
-Authors
+Contributors
 -------
-* [@gedsic](http://github.com/gedsic)
+* [@gedsic](https://github.com/gedsic)
+* [@shekkbuilder](https://github.com/shekkbuilder)
+* [@Timosha](https://github.com/Timosha)
+* [@Gantron1](https://github.com/Gantron1)
+* [@andre3k1](https://github.com/andre3k1)
