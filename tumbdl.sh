@@ -48,7 +48,7 @@ if [ $# -ne 2 ]; then
 fi
 
 # sanitize input url
-url=$(echo "$url" | sed 's/http[s]*:\/\///g;s/\/$//g')
+url=$(echo "$url" | sed 's/\/$//g')
 
 # create target dir
 mkdir "$targetDir"
