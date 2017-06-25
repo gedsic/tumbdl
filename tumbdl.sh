@@ -48,7 +48,7 @@ if [ $# -ne 2 ]; then
 fi
 
 # sanitize input url
-url=$(echo "$url" | sed 's/http[s]*:\/\///g;s/\/$//g')
+url=$(echo "$url" | sed 's/\/$//g')
 
 # create target dir
 mkdir "$targetDir"
@@ -66,11 +66,11 @@ while [[ $endOfArchive -ne 1 ]]
 do
   # get archive page
   archivePage=$(curl $curlOptions -c $cookieFile --referer "http://$url" -A "$userAgent" "$url$archiveLink")
-  echo "Retrieving archive page $url$archiveLink..."  
+  echo "Retrieving archive page $url$archiveLink..."
 
   # extract links to posts
   monthPosts=$(echo "$archivePage" | grep -o -P "/post/[0-9]*.*?\"" | sed 's/"//g')
-  
+
   # process all posts on this archive page
   for postURL in $(echo "$monthPosts")
   do
@@ -78,7 +78,7 @@ do
     if grep -Fxq "$postURL" "$targetDir/articles.txt"
     then
       echo "Already got $url$postURL, skipping."
-    else 
+    else
       # get the image links (can be multiple images in sets)
       echo "Retrieving post $url$postURL..."
       postPage=$(curl $curlOptions -b $cookieFile --referer "http://$url$archiveLink" -A "$userAgent" "$url$postURL")
@@ -111,7 +111,7 @@ do
       else
         # no images found, check for video links
         echo "No images found, checking for videos"
-        
+
         # check for tumblr hosted videos
         videoPlayers=$(echo "$postPage" | grep -o -P "http[s]*://www.tumblr.com/video/.*/[0-9]*/[0-9]*/" | sort | uniq)
         for video in $(echo "$videoPlayers")
@@ -152,7 +152,7 @@ do
           otherSource=$(echo "$otherSource"; echo "$postPage" | grep -o -P "http[s]*://players.brightcove.net/.*/index.html\?videoId=[0-9]*")
           # add expressions for other video sites here like this:
           #otherSource=$(echo "$otherSource"; echo "$postPage" | grep -o "http[s]*://www.example.com/embed/video/[A-Za-z0-9]*")
-          
+
           # if video links were found, try youtube-dl
           if [ ! -z $otherSource ]
           then
@@ -170,7 +170,7 @@ do
           echo "youtube-dl not installed, not checking for externally hosted videos."
         fi
       fi
-      
+
       # if no error occured, enter page as downloaded
       if [[ $curlError -eq 0 ]]
       then
@@ -192,4 +192,3 @@ do
     echo "Next archive page: $url$archiveLink"
   fi
 done
-
